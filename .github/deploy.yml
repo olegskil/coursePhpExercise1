@@ -1,0 +1,34 @@
+name: deploy
+
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+env:
+  host_path: "~"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v1
+
+      - name: copy files and run docker compose
+        uses: cross-the-world/ssh-scp-ssh-pipelines@latest
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          user: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          connect_timeout: 10s
+          first_ssh: |-
+            cd docker
+            rm -rf
+          scp: |-
+            '.' => $host_path/docker
+            ln -s /etc/letsencrypt/ /home/docker-deploy/docker/prod/etc-letsencrypt
+          last_ssh: |-
+            cd docker/prod
+            docker compose up -d --build

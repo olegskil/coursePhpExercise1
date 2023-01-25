@@ -1,0 +1,53 @@
+version: '3.8'
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  backend:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:15.1-alpine
+    container_name: db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-root}
+    networks:
+      - backend
+    volumes:
+      - db-data:/var/lib/postgres
+
+  adminer:
+    image: adminer:4.8.1-standalone
+    container_name: adminer
+    ports:
+      - 8080:8080
+    networks:
+      - backend
+
+  php:
+    image: php:8.1-fpm-alpine
+    container_name: php
+    build: ./course-app
+    volumes:
+      - ./course-app:/var/www/
+    entrypoint: ["bash", "-c", "composer install && php-fpm"]
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:1.23-alpine
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      - ./course-app:/var/www/
+      - ./nginx/dev/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 80:80
+    depends_on:
+      - php
+    networks: 
+      - backend
